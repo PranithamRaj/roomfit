@@ -1,0 +1,10 @@
+node_modules/
+.expo/
+mobile/dist/
+backend/data/
+backend/uploads/
+.vercel/
+.env
+.env*.local
+*.log
+.DS_Store

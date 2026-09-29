@@ -1,0 +1,15 @@
+{
+  "name": "roomfit",
+  "private": true,
+  "description": "RoomFit — AR furniture marketplace (Expo app + Express API, deployable to Vercel)",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "install:all": "npm ci --prefix backend && npm ci --prefix mobile",
+    "dev:api": "npm run dev --prefix backend",
+    "dev:app": "npm start --prefix mobile",
+    "build:web": "npm run build:web --prefix mobile",
+    "test": "npm test --prefix backend && npm run test:mongo --prefix backend"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "RoomFit",
+    "slug": "roomfit",
+    "scheme": "roomfit",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.roomfit.app"
+    },
+    "android": {
+      "package": "com.roomfit.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#F6F1EB",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-web-browser",
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "RoomFit needs your photos so sellers can add product pictures."
+        }
+      ],
+      "expo-font"
+    ]
+  }
+}

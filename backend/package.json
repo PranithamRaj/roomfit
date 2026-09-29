@@ -1,0 +1,27 @@
+{
+  "name": "roomfit-backend",
+  "version": "1.0.0",
+  "description": "Express API for RoomFit — an AR furniture marketplace",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "seed": "node src/seed.js",
+    "test": "node --test",
+    "test:mongo": "node scripts/mongo-tests.js"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.8.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^7.7.0",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^11.3.0"
+  }
+}
