@@ -1,13 +1,21 @@
 const jwt = require('jsonwebtoken');
 const db = require('../db');
 
-if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
-  throw new Error('JWT_SECRET must be set in production');
+// Production must supply its own secret; failing only the auth routes (with a clear message)
+// keeps the rest of the site up and makes the misconfiguration obvious.
+function secret() {
+  if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
+  if (process.env.NODE_ENV === 'production') {
+    throw Object.assign(new Error('Server not configured: set the JWT_SECRET environment variable, then redeploy'), {
+      status: 503,
+      expose: true,
+    });
+  }
+  return 'dev-only-change-me';
 }
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-change-me';
 
 function signToken(user) {
-  return jwt.sign({ sub: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign({ sub: user.id, role: user.role }, secret(), { expiresIn: '7d' });
 }
 
 function publicUser(user) {
@@ -20,9 +28,10 @@ async function optionalAuth(req, _res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (token) {
+    const key = secret();
     let payload = null;
     try {
-      payload = jwt.verify(token, JWT_SECRET);
+      payload = jwt.verify(token, key);
     } catch {
       // invalid/expired token -> treated as anonymous
     }

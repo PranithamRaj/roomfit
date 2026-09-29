@@ -12,19 +12,39 @@ function createApp() {
   app.use(express.json({ limit: '1mb' }));
   if (process.env.NODE_ENV !== 'test') app.use(morgan('dev'));
 
+  // Reports what's configured (never the values) so deployment problems are easy to spot.
+  app.get('/api/health', async (_req, res) => {
+    const config = {
+      database: db.kind,
+      jwtSecret: Boolean(process.env.JWT_SECRET) || process.env.NODE_ENV !== 'production',
+      blobStorage: Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.VERCEL_OIDC_TOKEN) || !process.env.VERCEL,
+      seedDemo: process.env.SEED_DEMO === 'true',
+    };
+    let dbError = null;
+    try {
+      await db.ping();
+    } catch (err) {
+      dbError = err.message;
+    }
+    const ok = !dbError && config.jwtSecret;
+    res.status(ok ? 200 : 503).json({ ok, ...config, dbError });
+  });
+
   // Seed demo shops on the first request to an empty database when SEED_DEMO=true.
+  // A failed attempt (e.g. database unreachable) is retried on the next request.
   if (process.env.SEED_DEMO === 'true') {
     let seeding = null;
     app.use(async (_req, _res, next) => {
       seeding ||= (async () => {
-        if (!(await db.users.findOne({}))) await require('./seed').seed();
-      })();
+        if (!(await db.users.findOne({}))) await require('./seed').seed({ log: false });
+      })().catch((err) => {
+        seeding = null;
+        throw err;
+      });
       await seeding;
       next();
     });
   }
-
-  app.get('/api/health', (_req, res) => res.json({ ok: true, db: db.kind }));
   app.use('/api/auth', require('./routes/auth'));
   app.use('/api/shops', require('./routes/shops'));
   app.use('/api/products', require('./routes/products'));
@@ -53,11 +73,13 @@ function createApp() {
   app.use((err, _req, res, _next) => {
     const tooBig = err.code === 'LIMIT_FILE_SIZE';
     const status = err.status || (tooBig ? 413 : 500);
-    if (status >= 500) console.error(err);
+    if (err.expose) console.warn(`[config] ${err.message}`);
+    else if (status >= 500) console.error(err);
     const message = tooBig
       ? `File is larger than ${MAX_BYTES / 1024 / 1024} MB — for big 3D models, paste a link to the .glb instead`
       : err.message;
-    res.status(status).json({ error: status >= 500 ? 'Something went wrong' : message });
+    // Configuration errors (expose) are safe and useful to show; other 5xx details stay in the logs.
+    res.status(status).json({ error: status >= 500 && !err.expose ? 'Something went wrong' : message });
   });
 
   return app;

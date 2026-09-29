@@ -72,16 +72,35 @@ function fileAdapter(file) {
       state = Object.fromEntries(COLLECTIONS.map((c) => [c, []]));
       save();
     },
+    async ping() {
+      load();
+    },
     async close() {},
   };
 }
 
 // ---------- MongoDB adapter ----------
 function mongoAdapter(uri) {
-  // Reuse one client across serverless invocations.
   const { MongoClient } = require('mongodb');
-  globalThis.__roomfitMongo ||= new MongoClient(uri).connect();
-  const database = async () => (await globalThis.__roomfitMongo).db(process.env.MONGODB_DB || 'roomfit');
+
+  // Connect lazily and reuse the client across serverless invocations. A failed connection
+  // (bad URI, Atlas network rules) is reported to that request and retried on the next one,
+  // instead of crashing the function at startup.
+  async function client() {
+    if (!globalThis.__roomfitMongo) {
+      const connecting = (async () => new MongoClient(uri, { serverSelectionTimeoutMS: 8000 }).connect())();
+      globalThis.__roomfitMongo = connecting;
+      connecting.catch(() => {
+        if (globalThis.__roomfitMongo === connecting) globalThis.__roomfitMongo = null;
+      });
+    }
+    try {
+      return await globalThis.__roomfitMongo;
+    } catch (err) {
+      throw Object.assign(new Error(`Cannot connect to MongoDB: ${err.message}`), { status: 503, expose: true });
+    }
+  }
+  const database = async () => (await client()).db(process.env.MONGODB_DB || 'roomfit');
   const noMongoId = { projection: { _id: 0 } };
 
   const collection = (name) => {
@@ -117,20 +136,39 @@ function mongoAdapter(uri) {
       await d.collection('users').createIndex({ email: 1 }, { unique: true });
       for (const c of COLLECTIONS) await d.collection(c).createIndex({ id: 1 }, { unique: true });
     },
+    async ping() {
+      await (await database()).command({ ping: 1 });
+    },
     async close() {
-      if (globalThis.__roomfitMongo) await (await globalThis.__roomfitMongo).close();
+      const pending = globalThis.__roomfitMongo;
       globalThis.__roomfitMongo = null;
+      if (pending) await (await pending.catch(() => null))?.close();
     },
   };
 }
 
+// Vercel's filesystem is read-only, so the JSON file can't work there.
+function missingDatabase() {
+  const fail = async () => {
+    throw Object.assign(
+      new Error('Database not configured: set MONGODB_URI (Vercel → Storage → connect MongoDB Atlas), then redeploy'),
+      { status: 503, expose: true },
+    );
+  };
+  const collection = () => ({ byId: fail, findOne: fail, findMany: fail, insert: fail, update: fail, remove: fail });
+  return { kind: 'none', collection, reset: fail, ping: fail, async close() {} };
+}
+
 const adapter = process.env.MONGODB_URI
   ? mongoAdapter(process.env.MONGODB_URI)
-  : fileAdapter(process.env.DATA_FILE || path.join(__dirname, '..', 'data', 'db.json'));
+  : process.env.VERCEL
+    ? missingDatabase()
+    : fileAdapter(process.env.DATA_FILE || path.join(__dirname, '..', 'data', 'db.json'));
 
 module.exports = {
   kind: adapter.kind,
   reset: adapter.reset,
+  ping: adapter.ping,
   close: adapter.close,
   ...Object.fromEntries(COLLECTIONS.map((c) => [c, adapter.collection(c)])),
 };
