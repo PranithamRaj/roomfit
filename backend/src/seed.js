@@ -1,6 +1,7 @@
 // Demo data. Run `npm run seed` to wipe and re-seed.
 // 3D models are CC-BY/CC0 samples from the Khronos glTF-Sample-Assets repository.
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const db = require('./db');
 
 const KHR = 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models';
@@ -8,6 +9,13 @@ const model = (name) => `${KHR}/${name}/glTF-Binary/${name}.glb`;
 const shot = (name, ext = 'jpg') => `${KHR}/${name}/screenshot/screenshot.${ext}`;
 
 const DEMO_PASSWORD = 'password123';
+
+// Deterministic UUID-shaped ids, so every serverless instance running in-memory demo mode
+// agrees on the same product/shop/user ids (links keep working across instances).
+function stableId(key) {
+  const h = crypto.createHash('sha1').update(`roomfit-demo:${key}`).digest('hex');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
 
 const SHOPS = [
   {
@@ -158,14 +166,16 @@ async function seed({ log = true } = {}) {
   await db.reset();
   const hash = await bcrypt.hash(DEMO_PASSWORD, 10);
 
-  await db.users.insert({ name: 'Demo Buyer', email: 'buyer@roomfit.test', role: 'buyer', passwordHash: hash });
+  await db.users.insert({ id: stableId('user:buyer@roomfit.test'), name: 'Demo Buyer', email: 'buyer@roomfit.test', role: 'buyer', passwordHash: hash });
 
   let products = 0;
   for (const entry of SHOPS) {
-    const owner = await db.users.insert({ ...entry.owner, role: 'seller', passwordHash: hash });
-    const shop = await db.shops.insert({ ...entry.shop, ownerId: owner.id });
+    const owner = await db.users.insert({ id: stableId(`user:${entry.owner.email}`), ...entry.owner, role: 'seller', passwordHash: hash });
+    const shop = await db.shops.insert({ id: stableId(`shop:${entry.shop.name}`), ...entry.shop, ownerId: owner.id });
     for (const { model: name, ...p } of entry.products) {
-      await db.products.insert({ placement: 'floor', ...p, shopId: shop.id, modelUrl: model(name), iosModelUrl: '', images: [shot(name)] });
+      // Fixed, distinct timestamps keep "newest first" ordering identical on every instance.
+      const createdAt = new Date(Date.UTC(2026, 0, 1) + products * 60_000).toISOString();
+      await db.products.insert({ id: stableId(`product:${p.name}`), createdAt, updatedAt: createdAt, placement: 'floor', ...p, shopId: shop.id, modelUrl: model(name), iosModelUrl: '', images: [shot(name)] });
       products += 1;
     }
   }

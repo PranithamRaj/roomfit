@@ -19,8 +19,13 @@ export default function Home() {
   const { user } = useAuth();
   const { width } = useWindowDimensions();
   const { data, loading, error, reload } = useAsync(async () => {
-    const [p, s, c] = await Promise.all([api.products({ sort: 'newest' }), api.shops(), api.categories()]);
-    return { products: p.products, shops: s.shops, categories: c.categories };
+    const [p, s, c, h] = await Promise.all([
+      api.products({ sort: 'newest' }),
+      api.shops(),
+      api.categories(),
+      api.health().catch(() => null),
+    ]);
+    return { products: p.products, shops: s.shops, categories: c.categories, demoMode: Boolean(h?.demoMode) };
   });
 
   if (loading) return <Loading />;
@@ -41,6 +46,12 @@ export default function Home() {
 
         <View style={{ paddingHorizontal: space(4) }}>
           <ErrorBox error={error} onRetry={reload} />
+          {data?.demoMode && (
+            <View style={styles.demo}>
+              <Ionicons name="flask-outline" size={16} color={colors.warn} />
+              <Text style={styles.demoText}>Demo mode: accounts and orders reset from time to time.</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.hero}>
@@ -120,6 +131,8 @@ function Section({ title, action, children }) {
 const styles = StyleSheet.create({
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: space(4), paddingBottom: space(2) },
   hello: { color: colors.muted, fontSize: 14 },
+  demo: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.warnSoft, borderRadius: radius.sm, padding: space(2), marginBottom: space(2) },
+  demoText: { flex: 1, color: colors.warn, fontSize: 13 },
   brand: { color: colors.ink, fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
   searchBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
   hero: { marginHorizontal: space(4), marginTop: space(2), backgroundColor: colors.ink, borderRadius: radius.lg, padding: space(5), flexDirection: 'row', ...shadow },

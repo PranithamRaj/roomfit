@@ -51,6 +51,7 @@ export const api = {
   login: (email, password) => request('POST', '/api/auth/login', { body: { email, password } }),
   register: (payload) => request('POST', '/api/auth/register', { body: payload }),
   me: () => request('GET', '/api/auth/me'),
+  health: () => request('GET', '/api/health'),
   // catalogue
   categories: () => request('GET', '/api/products/categories'),
   products: (query) => request('GET', '/api/products', { query }),

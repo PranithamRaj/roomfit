@@ -1,11 +1,12 @@
 const jwt = require('jsonwebtoken');
 const db = require('../db');
 
-// Production must supply its own secret; failing only the auth routes (with a clear message)
-// keeps the rest of the site up and makes the misconfiguration obvious.
+// Production with a real database must supply its own secret; failing only the auth routes
+// (with a clear message) keeps the rest of the site up and makes the misconfiguration obvious.
+// In-memory demo mode holds no real data, so it may fall back to the built-in secret.
 function secret() {
   if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === 'production' && db.kind !== 'memory') {
     throw Object.assign(new Error('Server not configured: set the JWT_SECRET environment variable, then redeploy'), {
       status: 503,
       expose: true,

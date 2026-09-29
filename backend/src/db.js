@@ -13,14 +13,14 @@ const newId = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
 const matches = (row, query = {}) => Object.entries(query).every(([k, v]) => row[k] === v);
 
-// ---------- JSON file adapter ----------
+// ---------- JSON file adapter (file = null keeps data in memory only) ----------
 function fileAdapter(file) {
   let state = null;
 
   function load() {
     if (state) return state;
     try {
-      state = JSON.parse(fs.readFileSync(file, 'utf8'));
+      state = file ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
     } catch {
       state = {};
     }
@@ -29,6 +29,7 @@ function fileAdapter(file) {
   }
 
   function save() {
+    if (!file) return;
     fs.mkdirSync(path.dirname(file), { recursive: true });
     const tmp = `${file}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify(state, null, 2));
@@ -66,7 +67,7 @@ function fileAdapter(file) {
   };
 
   return {
-    kind: 'file',
+    kind: file ? 'file' : 'memory',
     collection,
     async reset() {
       state = Object.fromEntries(COLLECTIONS.map((c) => [c, []]));
@@ -147,22 +148,12 @@ function mongoAdapter(uri) {
   };
 }
 
-// Vercel's filesystem is read-only, so the JSON file can't work there.
-function missingDatabase() {
-  const fail = async () => {
-    throw Object.assign(
-      new Error('Database not configured: set MONGODB_URI (Vercel → Storage → connect MongoDB Atlas), then redeploy'),
-      { status: 503, expose: true },
-    );
-  };
-  const collection = () => ({ byId: fail, findOne: fail, findMany: fail, insert: fail, update: fail, remove: fail });
-  return { kind: 'none', collection, reset: fail, ping: fail, async close() {} };
-}
-
+// On Vercel without MONGODB_URI the filesystem is read-only, so run in demo mode:
+// data lives in memory (seeded automatically) and resets whenever the function restarts.
 const adapter = process.env.MONGODB_URI
   ? mongoAdapter(process.env.MONGODB_URI)
   : process.env.VERCEL
-    ? missingDatabase()
+    ? fileAdapter(null)
     : fileAdapter(process.env.DATA_FILE || path.join(__dirname, '..', 'data', 'db.json'));
 
 module.exports = {

@@ -14,11 +14,13 @@ function createApp() {
 
   // Reports what's configured (never the values) so deployment problems are easy to spot.
   app.get('/api/health', async (_req, res) => {
+    const demoMode = db.kind === 'memory';
     const config = {
       database: db.kind,
-      jwtSecret: Boolean(process.env.JWT_SECRET) || process.env.NODE_ENV !== 'production',
+      demoMode,
+      jwtSecret: Boolean(process.env.JWT_SECRET) || process.env.NODE_ENV !== 'production' || demoMode,
       blobStorage: Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.VERCEL_OIDC_TOKEN) || !process.env.VERCEL,
-      seedDemo: process.env.SEED_DEMO === 'true',
+      seedDemo: process.env.SEED_DEMO === 'true' || demoMode,
     };
     let dbError = null;
     try {
@@ -27,12 +29,15 @@ function createApp() {
       dbError = err.message;
     }
     const ok = !dbError && config.jwtSecret;
-    res.status(ok ? 200 : 503).json({ ok, ...config, dbError });
+    const note = demoMode
+      ? 'Demo mode: no database configured, data is kept in memory and resets. Set MONGODB_URI to keep data.'
+      : undefined;
+    res.status(ok ? 200 : 503).json({ ok, ...config, dbError, note });
   });
 
-  // Seed demo shops on the first request to an empty database when SEED_DEMO=true.
-  // A failed attempt (e.g. database unreachable) is retried on the next request.
-  if (process.env.SEED_DEMO === 'true') {
+  // Seed demo shops on the first request to an empty database when SEED_DEMO=true
+  // (always in in-memory demo mode). A failed attempt is retried on the next request.
+  if (process.env.SEED_DEMO === 'true' || db.kind === 'memory') {
     let seeding = null;
     app.use(async (_req, _res, next) => {
       seeding ||= (async () => {
