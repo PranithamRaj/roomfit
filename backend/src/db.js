@@ -189,16 +189,27 @@ function mongoAdapter(uri) {
   };
 }
 
-// On Vercel without MONGODB_URI the filesystem is read-only, so run in demo mode:
+// The connection string normally comes from MONGODB_URI. Vercel's MongoDB Atlas integration can
+// add a custom prefix (e.g. STORAGE_MONGODB_URI), so any *MONGODB_URI / *MONGODB_URL variable
+// holding a mongodb:// or mongodb+srv:// string is accepted too.
+const mongoEnvNames = Object.keys(process.env).filter((k) => /MONGO/i.test(k)).sort();
+const mongoUriVar = ['MONGODB_URI', ...mongoEnvNames.filter((k) => /MONGO(DB)?_(URI|URL)$/i.test(k))]
+  .find((k) => /^mongodb(\+srv)?:\/\//.test(process.env[k] || ''));
+const mongoUri = mongoUriVar ? process.env[mongoUriVar] : null;
+
+// On Vercel without a MongoDB URI the filesystem is read-only, so run in demo mode:
 // data lives in memory (seeded automatically) and resets whenever the function restarts.
-const adapter = process.env.MONGODB_URI
-  ? mongoAdapter(process.env.MONGODB_URI)
+const adapter = mongoUri
+  ? mongoAdapter(mongoUri)
   : process.env.VERCEL
     ? fileAdapter(null)
     : fileAdapter(process.env.DATA_FILE || path.join(__dirname, '..', 'data', 'db.json'));
 
 module.exports = {
   kind: adapter.kind,
+  // For /api/health: variable names only, never their values.
+  mongoUriVar: mongoUriVar || null,
+  mongoEnvNames,
   reset: adapter.reset,
   ping: adapter.ping,
   close: adapter.close,

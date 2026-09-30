@@ -18,6 +18,9 @@ function createApp() {
     const config = {
       database: db.kind,
       demoMode,
+      // Names (not values) of MongoDB-related variables this deployment can see.
+      mongoUriVar: db.mongoUriVar,
+      mongoEnvVars: db.mongoEnvNames,
       jwtSecret: Boolean(process.env.JWT_SECRET) || process.env.NODE_ENV !== 'production' || demoMode,
       blobStorage: Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.VERCEL_OIDC_TOKEN) || !process.env.VERCEL,
       seedDemo: process.env.SEED_DEMO === 'true' || demoMode,
