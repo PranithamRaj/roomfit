@@ -33,7 +33,6 @@ const SHOPS = [
       {
         name: 'Glam Velvet Sofa',
         category: 'Sofas',
-        price: 48999,
         stock: 6,
         material: 'Velvet, solid wood frame',
         color: 'Midnight blue',
@@ -44,7 +43,6 @@ const SHOPS = [
       {
         name: 'Heritage Wood & Leather Sofa',
         category: 'Sofas',
-        price: 62500,
         stock: 3,
         material: 'Top-grain leather, walnut',
         color: 'Cognac',
@@ -55,7 +53,6 @@ const SHOPS = [
       {
         name: 'Silk Floor Pouf',
         category: 'Decor',
-        price: 6499,
         stock: 15,
         material: 'Silk blend',
         color: 'Pearl',
@@ -80,7 +77,6 @@ const SHOPS = [
       {
         name: 'Sheen Accent Chair',
         category: 'Chairs',
-        price: 14999,
         stock: 10,
         material: 'Performance fabric, beech legs',
         color: 'Mango velvet',
@@ -91,7 +87,6 @@ const SHOPS = [
       {
         name: 'Damask Armchair',
         category: 'Chairs',
-        price: 21999,
         stock: 4,
         material: 'Damask jacquard, carved wood',
         color: 'Purple & gold',
@@ -116,7 +111,6 @@ const SHOPS = [
       {
         name: 'Brushed Barn Lamp',
         category: 'Lighting',
-        price: 7999,
         stock: 20,
         material: 'Brushed steel',
         color: 'Gunmetal',
@@ -127,7 +121,6 @@ const SHOPS = [
       {
         name: 'Iridescent Table Lamp',
         category: 'Lighting',
-        price: 5499,
         stock: 12,
         material: 'Iridescent glass, metal',
         color: 'Rainbow sheen',
@@ -138,7 +131,6 @@ const SHOPS = [
       {
         name: 'Glass Vase with Flowers',
         category: 'Decor',
-        price: 2499,
         stock: 30,
         material: 'Hand-blown glass',
         color: 'Clear',
@@ -149,7 +141,6 @@ const SHOPS = [
       {
         name: 'Hurricane Candle Holder',
         category: 'Decor',
-        price: 1899,
         stock: 25,
         material: 'Glass, brass',
         color: 'Clear / brass',

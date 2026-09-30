@@ -10,8 +10,7 @@ import { colors, radius, space } from '../../theme';
 
 const SORTS = [
   { key: 'newest', label: 'Newest' },
-  { key: 'price_asc', label: 'Price ↑' },
-  { key: 'price_desc', label: 'Price ↓' },
+  { key: 'name', label: 'A–Z' },
 ];
 
 export default function Browse() {

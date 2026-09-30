@@ -13,7 +13,7 @@ import { Button, Card, Chip, ErrorBox, Field, H2, Loading, Muted, Screen } from 
 import { colors, radius, space } from '../../theme';
 
 const EMPTY = {
-  name: '', category: '', price: '', stock: '1', material: '', color: '', description: '',
+  name: '', category: '', stock: '1', material: '', color: '', description: '',
   width: '', depth: '', height: '', placement: 'floor', modelUrl: '', iosModelUrl: '', images: [],
 };
 
@@ -29,7 +29,6 @@ const confirm = (title, body) =>
 const toForm = (p) => ({
   ...EMPTY,
   ...p,
-  price: String(p.price),
   stock: String(p.stock),
   width: String(p.dimensions.width),
   depth: String(p.dimensions.depth),
@@ -94,7 +93,6 @@ function ProductEditor({ id, product }) {
     const payload = {
       name: form.name,
       category: form.category,
-      price: Number(form.price),
       stock: Number(form.stock || 0),
       material: form.material,
       color: form.color,
@@ -141,8 +139,8 @@ function ProductEditor({ id, product }) {
           ))}
         </View>
         <View style={styles.pair}>
-          <Field style={{ flex: 1 }} label="Price (₹)" value={form.price} onChangeText={num('price')} keyboardType="decimal-pad" />
-          <Field style={{ flex: 1 }} label="Stock" value={form.stock} onChangeText={(v) => set('stock')(v.replace(/[^0-9]/g, ''))} keyboardType="number-pad" />
+          <Field style={{ flex: 1 }} label="Stock" value={form.stock} onChangeText={(v) => set('stock')(v.replace(/[^0-9]/g, ''))} keyboardType="number-pad"
+            hint={"0 shows the piece as 'Ask about availability'"} />
         </View>
         <View style={styles.pair}>
           <Field style={{ flex: 1 }} label="Material" value={form.material} onChangeText={set('material')} />

@@ -17,7 +17,7 @@ export default function SellerTabs() {
     >
       <Tabs.Screen name="dashboard" options={{ title: 'Dashboard', tabBarIcon: (p) => <TabIcon name="stats-chart" {...p} /> }} />
       <Tabs.Screen name="products" options={{ title: 'Products', tabBarIcon: (p) => <TabIcon name="cube" {...p} /> }} />
-      <Tabs.Screen name="sales" options={{ title: 'Orders', tabBarIcon: (p) => <TabIcon name="receipt" {...p} /> }} />
+      <Tabs.Screen name="inbox" options={{ title: 'Enquiries', tabBarIcon: (p) => <TabIcon name="chatbubbles" {...p} /> }} />
       <Tabs.Screen name="profile" options={{ title: 'Account', tabBarIcon: (p) => <TabIcon name="person" {...p} /> }} />
     </Tabs>
   );

@@ -27,9 +27,7 @@ export const shadow = {
 };
 
 export const STATUS_COLORS = {
-  placed: { bg: colors.accentSoft, fg: colors.accent },
-  confirmed: { bg: '#E3E8F7', fg: '#2F4A9A' },
-  shipped: { bg: colors.warnSoft, fg: colors.warn },
-  delivered: { bg: colors.successSoft, fg: colors.success },
-  cancelled: { bg: colors.dangerSoft, fg: colors.danger },
+  new: { bg: colors.accentSoft, fg: colors.accent },
+  contacted: { bg: '#E3E8F7', fg: '#2F4A9A' },
+  closed: { bg: colors.successSoft, fg: colors.success },
 };

@@ -53,8 +53,7 @@ function createApp() {
   app.use('/api/auth', require('./routes/auth'));
   app.use('/api/shops', require('./routes/shops'));
   app.use('/api/products', require('./routes/products'));
-  app.use('/api/cart', require('./routes/cart'));
-  app.use('/api/orders', require('./routes/orders'));
+  app.use('/api/enquiries', require('./routes/enquiries'));
   app.use('/api/uploads', require('./routes/uploads'));
 
   // Local-disk uploads (development). model/gltf-binary lets Scene Viewer & Quick Look recognise models.

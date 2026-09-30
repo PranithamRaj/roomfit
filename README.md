@@ -1,7 +1,7 @@
 # RoomFit: an AR furniture marketplace
 
-Shoppers browse furniture from local shops, **place it in their own room with AR at true size**, check it fits, and order.
-Shops manage their catalogue (including 3D models) and fulfil orders.
+Shoppers browse furniture from local shops, **place it in their own room with AR at true size**, check it fits, and **enquire** with the shop.
+Listings show no prices: shops reply to enquiries with price, availability and delivery details.
 
 | Part | Tech | Folder |
 | --- | --- | --- |
@@ -40,14 +40,15 @@ Scan the QR code with Expo Go (Android) or the Camera app (iOS). Press `w` to op
 - Home: AR banner, categories, new arrivals, shops. Browse has search, category, *AR ready*, sort, and a **Fits my space** filter (max W/D/H).
 - Product page: interactive 3D model with dimension labels, and **View in your room (AR)**, which places the piece on your floor at real scale.
 - **Will it fit?** Enter your space's measurements and a clearance, and see per-dimension margins, a "fits if you turn it 90°" check, and a top-down floor plan.
-- Cart across multiple shops. Checkout creates **one order per shop**, with cash or card on delivery (no card data is collected).
-- Order tracking (placed → confirmed → shipped → delivered). You can cancel until the shop confirms; stock is restored.
+- **Enquire** instead of buying: name, phone, optional email, preferred contact (call, WhatsApp or email) and a message. Guests can enquire without an account.
+- One-tap **Call shop** and **WhatsApp** buttons when the shop has a phone number.
+- Signed-in shoppers track their enquiries (New → Contacted → Closed) in the Enquiries tab.
 
 **Sellers**
 - Shop profile (logo, cover, address).
 - Products: photos (upload or URL), real-world dimensions, **.glb 3D model upload** (plus optional .usdz for iOS), floor/wall AR placement, and an in-app AR test.
-- Dashboard: orders to confirm and ship, delivered sales, open pipeline, low-stock and missing-3D-model alerts.
-- Incoming orders with enforced status transitions.
+- Dashboard: new and in-progress enquiries, enquiries this week, most-asked-about piece, and alerts for a missing shop phone, unavailable pieces and missing 3D models.
+- Enquiry inbox with the shopper's contact details, one-tap call/WhatsApp/email (which marks the enquiry as contacted), and status tracking.
 
 ## How the AR works
 
@@ -70,14 +71,14 @@ All routes are under `/api`. Send `Authorization: Bearer <token>` where auth is 
 | Method & path | Who | Purpose |
 | --- | --- | --- |
 | `POST /auth/register`, `POST /auth/login`, `GET /auth/me` | anyone / user | Accounts (`role`: `buyer` or `seller`) |
-| `GET /products?q&category&shop&minPrice&maxPrice&maxWidth&maxDepth&maxHeight&arOnly&sort` | public | Catalogue search, including "fits my space" |
+| `GET /products?q&category&shop&maxWidth&maxDepth&maxHeight&arOnly&sort` | public | Catalogue search, including "fits my space" |
 | `GET /products/:id`, `GET /products/categories` | public | Product details and related items |
 | `POST/PUT/DELETE /products[/:id]` | seller (owner) | Manage products |
 | `GET /shops`, `GET /shops/:id`, `GET /shops/mine` | public / seller | Shops |
 | `POST /shops`, `PUT /shops/:id` | seller | Create or update your shop |
-| `GET/POST /cart`, `PATCH/DELETE /cart/:productId` | buyer | Cart (stock-checked) |
-| `POST /orders` | buyer | Checkout (splits by shop, decrements stock) |
-| `GET /orders`, `GET /orders/:id`, `PATCH /orders/:id/status` | buyer / seller | Tracking and fulfilment |
+| `POST /enquiries` | anyone (guest or shopper) | Send an enquiry about a product |
+| `GET /enquiries`, `GET /enquiries/:id` | shopper / seller | Your enquiries, or your shop's inbox |
+| `PATCH /enquiries/:id/status` | seller (owner) | `new` → `contacted` → `closed` (or reopen) |
 | `POST /uploads` (multipart `file`) | seller | jpg/png/webp/glb/usdz, up to 50 MB |
 | `GET /ar/:productId[?embed=1]` | public | AR / 3D viewer page (not under `/api`) |
 
@@ -162,7 +163,7 @@ Open the URL it prints. You can also push the folder to GitHub and import it at 
 
 ## Going to production
 
-- Set a strong `JWT_SECRET`, add rate limiting on `/auth`, and add a real payment provider if you want online payments.
+- Set a strong `JWT_SECRET`, add rate limiting on `/auth`, and add spam protection (e.g. a CAPTCHA or rate limit) on `POST /enquiries` if it gets abused.
 - Product search filters in memory after a database query. That's fine for thousands of products; add MongoDB text indexes beyond that.
 - Build the native apps with EAS: `npx eas-cli@latest build`.
 
@@ -172,14 +173,16 @@ Open the URL it prints. You can also push the folder to GitHub and import it at 
 backend/
   src/app.js          Express app (routes, static uploads, AR page)
   src/arPage.js       model-viewer AR / 3D page
-  src/routes/         auth, shops, products, cart, orders, uploads
+  src/routes/         auth, shops, products, enquiries, uploads
   src/seed.js         demo shops, products, accounts
   test/api.test.js    end-to-end API tests
 mobile/
   src/app/            Expo Router screens
-    (shop)/           shopper tabs: home, browse, cart, orders, account
-    (seller)/         seller tabs: dashboard, products, sales, profile
-    product/[id].js   product page (3D, AR, fit checker)
+    (shop)/           shopper tabs: home, browse, enquiries, account
+    (seller)/         seller tabs: dashboard, products, enquiry inbox, profile
+    product/[id].js   product page (3D, AR, fit checker, enquire)
+    enquire/[id].js   enquiry form (works for guests)
+    enquiry/[id].js   enquiry detail and seller follow-up
     seller/           product and shop forms
   src/components/     UI kit, ProductCard, ModelPreview, FitChecker, …
   src/lib/            api client, config, ar launcher, fit logic

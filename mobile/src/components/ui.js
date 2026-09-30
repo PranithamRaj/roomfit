@@ -133,29 +133,10 @@ export function Badge({ label, icon, tone = 'accent' }) {
 }
 
 export function StatusPill({ status }) {
-  const c = STATUS_COLORS[status] || STATUS_COLORS.placed;
+  const c = STATUS_COLORS[status] || STATUS_COLORS.new;
   return (
     <View style={[styles.badge, { backgroundColor: c.bg }]}>
       <Text style={[styles.badgeText, { color: c.fg }]}>{STATUS_LABEL[status] || status}</Text>
-    </View>
-  );
-}
-
-export function QtyStepper({ value, onChange, max }) {
-  return (
-    <View style={styles.stepper}>
-      <Pressable onPress={() => onChange(value - 1)} style={styles.stepBtn} accessibilityLabel="Decrease quantity">
-        <Ionicons name={value <= 1 ? 'trash-outline' : 'remove'} size={16} color={colors.ink} />
-      </Pressable>
-      <Text style={styles.stepVal}>{value}</Text>
-      <Pressable
-        onPress={() => onChange(value + 1)}
-        disabled={max !== undefined && value >= max}
-        style={[styles.stepBtn, max !== undefined && value >= max && { opacity: 0.3 }]}
-        accessibilityLabel="Increase quantity"
-      >
-        <Ionicons name="add" size={16} color={colors.ink} />
-      </Pressable>
     </View>
   );
 }
@@ -192,7 +173,4 @@ export const styles = StyleSheet.create({
   errorText: { flex: 1, color: colors.danger, fontSize: 14 },
   badge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 3 },
   badgeText: { fontSize: 12, fontWeight: '600' },
-  stepper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: radius.pill, backgroundColor: '#fff' },
-  stepBtn: { paddingHorizontal: 10, paddingVertical: 6 },
-  stepVal: { minWidth: 22, textAlign: 'center', fontWeight: '600', color: colors.ink },
 });

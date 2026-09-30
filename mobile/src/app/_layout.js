@@ -2,12 +2,11 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../context/AuthContext';
-import { CartProvider } from '../context/CartContext';
 import { Loading } from '../components/ui';
 import { colors } from '../theme';
 
 function RootStack() {
-  const { ready, user, isSeller, isBuyer } = useAuth();
+  const { ready, user, isSeller } = useAuth();
   if (!ready) return <Loading />;
 
   return (
@@ -26,10 +25,8 @@ function RootStack() {
         <Stack.Screen name="(shop)" options={{ headerShown: false }} />
         <Stack.Screen name="product/[id]" options={{ title: '' }} />
         <Stack.Screen name="shop/[id]" options={{ title: '' }} />
-      </Stack.Protected>
-
-      <Stack.Protected guard={isBuyer}>
-        <Stack.Screen name="checkout" options={{ title: 'Checkout' }} />
+        {/* Guests can enquire too; no account needed. */}
+        <Stack.Screen name="enquire/[id]" options={{ title: 'Enquire', presentation: 'modal' }} />
       </Stack.Protected>
 
       <Stack.Protected guard={isSeller}>
@@ -39,7 +36,7 @@ function RootStack() {
       </Stack.Protected>
 
       <Stack.Protected guard={!!user}>
-        <Stack.Screen name="order/[id]" options={{ title: 'Order' }} />
+        <Stack.Screen name="enquiry/[id]" options={{ title: 'Enquiry' }} />
       </Stack.Protected>
 
       <Stack.Protected guard={!user}>
@@ -54,10 +51,8 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <CartProvider>
-          <StatusBar style="dark" />
-          <RootStack />
-        </CartProvider>
+        <StatusBar style="dark" />
+        <RootStack />
       </AuthProvider>
     </SafeAreaProvider>
   );

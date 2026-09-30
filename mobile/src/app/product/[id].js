@@ -5,27 +5,21 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../lib/api';
 import { assetUrl } from '../../lib/config';
 import { hasAr, openInRoom } from '../../lib/ar';
-import { dims, money } from '../../lib/format';
+import { callUrl, hasPhone, openLink, whatsappUrl } from '../../lib/contact';
+import { dims } from '../../lib/format';
 import { useAsync } from '../../lib/useAsync';
-import { useAuth } from '../../context/AuthContext';
-import { useCart } from '../../context/CartContext';
 import ModelPreview from '../../components/ModelPreview';
 import FitChecker from '../../components/FitChecker';
 import ProductCard from '../../components/ProductCard';
-import { Button, Card, ErrorBox, H1, H2, Loading, Muted, QtyStepper, Screen } from '../../components/ui';
+import { Button, Card, ErrorBox, H1, H2, Loading, Muted, Screen } from '../../components/ui';
 import { colors, radius, space } from '../../theme';
 
 const notify = (title, body) => (Platform.OS === 'web' ? window.alert(`${title}\n${body}`) : Alert.alert(title, body));
 
 export default function ProductDetail() {
   const { id } = useLocalSearchParams();
-  const { user } = useAuth();
-  const { add } = useCart();
   const { data, loading, error, reload } = useAsync(() => api.product(id), [id]);
   const [view, setView] = useState('3d');
-  const [qty, setQty] = useState(1);
-  const [adding, setAdding] = useState(false);
-  const [actionError, setActionError] = useState(null);
   const [scaleWarning, setScaleWarning] = useState(false);
 
   if (loading) return <Loading />;
@@ -33,22 +27,9 @@ export default function ProductDetail() {
 
   const { product: p, related } = data;
   const ar = hasAr(p);
-  const soldOut = p.stock < 1;
+  const available = p.stock > 0;
+  const shopPhone = p.shop?.phone;
   const shown = ar ? view : 'photo';
-
-  const addToCart = async () => {
-    if (!user) return router.push('/login');
-    setAdding(true);
-    setActionError(null);
-    try {
-      await add(p.id, qty);
-      notify('Added to cart', `${qty} × ${p.name}`);
-    } catch (e) {
-      setActionError(e);
-    } finally {
-      setAdding(false);
-    }
-  };
 
   const launchAr = async () => {
     try {
@@ -87,10 +68,12 @@ export default function ProductDetail() {
               <Text style={styles.shopLinkText}>{p.shop.name}{p.shop.city ? ` · ${p.shop.city}` : ''}</Text>
             </Pressable>
           )}
-          <Text style={styles.price}>{money(p.price)}</Text>
-          <Text style={[styles.stock, { color: soldOut ? colors.danger : p.stock <= 3 ? colors.warn : colors.success }]}>
-            {soldOut ? 'Out of stock' : p.stock <= 3 ? `Only ${p.stock} left` : 'In stock'}
-          </Text>
+          <View style={styles.statusRow}>
+            <Text style={styles.onRequest}>Price on request</Text>
+            <Text style={[styles.stock, { color: available ? colors.success : colors.warn }]}>
+              · {available ? 'Available' : 'Ask about availability'}
+            </Text>
+          </View>
         </View>
 
         {ar && (
@@ -110,12 +93,20 @@ export default function ProductDetail() {
           </Card>
         )}
 
-        <ErrorBox error={actionError} />
-        <View style={styles.buyRow}>
-          <QtyStepper value={qty} max={p.stock} onChange={(n) => setQty(Math.max(1, n))} />
-          <Button title={soldOut ? 'Sold out' : user ? 'Add to cart' : 'Sign in to buy'} icon="bag-add-outline"
-            onPress={addToCart} loading={adding} disabled={soldOut} style={{ flex: 1 }} />
-        </View>
+        <Card style={{ marginTop: space(4) }}>
+          <H2 style={{ fontSize: 16 }}>Interested in this piece?</H2>
+          <Muted style={{ marginTop: 2 }}>Enquire and {p.shop?.name || 'the shop'} will share the price, availability and delivery details.</Muted>
+          <Button title="Enquire now" icon="chatbubble-ellipses-outline" style={{ marginTop: space(3) }}
+            onPress={() => router.push(`/enquire/${p.id}`)} />
+          {hasPhone(shopPhone) && (
+            <View style={styles.contactRow}>
+              <Button small variant="outline" title="Call shop" icon="call-outline" style={{ flex: 1 }}
+                onPress={() => openLink(callUrl(shopPhone))} />
+              <Button small variant="outline" title="WhatsApp" icon="logo-whatsapp" style={{ flex: 1 }}
+                onPress={() => openLink(whatsappUrl(shopPhone, `Hi, I'm interested in the ${p.name} I saw on RoomFit. Could you share the price and availability?`))} />
+            </View>
+          )}
+        </Card>
 
         <Card style={{ marginTop: space(4) }}>
           <H2>Size & details</H2>
@@ -169,13 +160,14 @@ const styles = StyleSheet.create({
   toggleText: { fontWeight: '600', color: colors.ink, fontSize: 13 },
   shopLink: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
   shopLinkText: { color: colors.accent, fontWeight: '600' },
-  price: { fontSize: 24, fontWeight: '800', color: colors.ink, marginTop: space(2) },
-  stock: { fontWeight: '600', marginTop: 2 },
+  statusRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginTop: space(2) },
+  onRequest: { fontSize: 16, fontWeight: '700', color: colors.ink },
+  stock: { fontWeight: '600' },
   arCard: { backgroundColor: colors.accent, borderColor: colors.accent, marginTop: space(4) },
   arTitle: { color: '#fff', fontSize: 17, fontWeight: '800', marginLeft: 6 },
   arBody: { color: '#fbeee6', lineHeight: 20 },
   arWarn: { color: '#fff', fontSize: 12, marginTop: 8, fontStyle: 'italic' },
-  buyRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: space(4) },
+  contactRow: { flexDirection: 'row', gap: 8, marginTop: space(2) },
   dimRow: { flexDirection: 'row', gap: 8, marginTop: space(3) },
   dimBox: { flex: 1, backgroundColor: '#fff', borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, alignItems: 'center', paddingVertical: 10 },
   dimVal: { fontSize: 20, fontWeight: '800', color: colors.ink },

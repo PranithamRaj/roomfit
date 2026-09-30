@@ -58,14 +58,11 @@ export const api = {
   product: (id) => request('GET', `/api/products/${id}`),
   shops: (query) => request('GET', '/api/shops', { query }),
   shop: (id) => request('GET', `/api/shops/${id}`),
-  // cart & orders
-  cart: () => request('GET', '/api/cart'),
-  addToCart: (productId, qty = 1) => request('POST', '/api/cart', { body: { productId, qty } }),
-  setCartQty: (productId, qty) => request('PATCH', `/api/cart/${productId}`, { body: { qty } }),
-  checkout: (payload) => request('POST', '/api/orders', { body: payload }),
-  orders: () => request('GET', '/api/orders'),
-  order: (id) => request('GET', `/api/orders/${id}`),
-  setOrderStatus: (id, status) => request('PATCH', `/api/orders/${id}/status`, { body: { status } }),
+  // enquiries (listings have no prices; shoppers enquire instead)
+  sendEnquiry: (payload) => request('POST', '/api/enquiries', { body: payload }),
+  enquiries: () => request('GET', '/api/enquiries'),
+  enquiry: (id) => request('GET', `/api/enquiries/${id}`),
+  setEnquiryStatus: (id, status) => request('PATCH', `/api/enquiries/${id}/status`, { body: { status } }),
   // seller
   myShop: () => request('GET', '/api/shops/mine'),
   createShop: (data) => request('POST', '/api/shops', { body: data }),

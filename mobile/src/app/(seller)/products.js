@@ -3,7 +3,6 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../lib/api';
 import { assetUrl } from '../../lib/config';
-import { money } from '../../lib/format';
 import { useAsync } from '../../lib/useAsync';
 import { useAuth } from '../../context/AuthContext';
 import { Badge, Button, Empty, ErrorBox, Loading, Muted } from '../../components/ui';
@@ -43,7 +42,6 @@ export default function SellerProducts() {
             <Text style={styles.name} numberOfLines={1}>{p.name}</Text>
             <Muted style={{ fontSize: 12 }}>{p.category} · {p.dimensions.width}×{p.dimensions.depth}×{p.dimensions.height} cm</Muted>
             <View style={styles.meta}>
-              <Text style={styles.price}>{money(p.price)}</Text>
               <Text style={[styles.stock, p.stock <= 2 && { color: colors.danger }]}>{p.stock} in stock</Text>
               {p.modelUrl ? <Badge label="AR" icon="cube-outline" tone="success" /> : <Badge label="No 3D" />}
             </View>
@@ -60,6 +58,5 @@ const styles = StyleSheet.create({
   thumb: { width: 64, height: 64, borderRadius: radius.sm, backgroundColor: '#fff' },
   name: { fontSize: 15, fontWeight: '700', color: colors.ink },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 },
-  price: { fontWeight: '700', color: colors.ink },
   stock: { fontSize: 12, color: colors.muted },
 });

@@ -6,9 +6,13 @@ const router = express.Router();
 
 const CATEGORIES = ['Sofas', 'Chairs', 'Tables', 'Beds', 'Storage', 'Lighting', 'Decor', 'Outdoor'];
 
-async function withShop(product) {
+// Listings don't show prices; buyers enquire instead. `price` is dropped in case older data still has it.
+async function withShop({ price, ...product }) {
   const shop = await db.shops.byId(product.shopId);
-  return { ...product, shop: shop ? { id: shop.id, name: shop.name, city: shop.city, logo: shop.logo } : null };
+  return {
+    ...product,
+    shop: shop ? { id: shop.id, name: shop.name, city: shop.city, logo: shop.logo, phone: shop.phone || '' } : null,
+  };
 }
 const withShops = (list) => Promise.all(list.map(withShop));
 
@@ -21,11 +25,6 @@ function parseProduct(body, { partial = false } = {}) {
   if (has('name') || !partial) {
     if (!String(body.name || '').trim()) errors.push('name is required');
     else out.name = String(body.name).trim();
-  }
-  if (has('price') || !partial) {
-    const price = Number(body.price);
-    if (!Number.isFinite(price) || price < 0) errors.push('price must be a positive number');
-    else out.price = Math.round(price * 100) / 100;
   }
   if (has('category') || !partial) {
     if (!CATEGORIES.includes(body.category)) errors.push(`category must be one of: ${CATEGORIES.join(', ')}`);
@@ -65,7 +64,7 @@ function parseProduct(body, { partial = false } = {}) {
 router.get('/categories', (_req, res) => res.json({ categories: CATEGORIES }));
 
 router.get('/', async (req, res) => {
-  const { q, category, shop, minPrice, maxPrice, arOnly, sort = 'newest', maxWidth, maxDepth, maxHeight } = req.query;
+  const { q, category, shop, arOnly, sort = 'newest', maxWidth, maxDepth, maxHeight } = req.query;
   const term = String(q || '').toLowerCase();
 
   // Equality filters go to the database; text search and ranges are applied here.
@@ -75,8 +74,6 @@ router.get('/', async (req, res) => {
 
   let list = (await db.products.findMany(query)).filter((p) => {
     if (term && !`${p.name} ${p.description} ${p.material} ${p.color}`.toLowerCase().includes(term)) return false;
-    if (minPrice && p.price < Number(minPrice)) return false;
-    if (maxPrice && p.price > Number(maxPrice)) return false;
     if (arOnly === 'true' && !p.modelUrl) return false;
     // "Fits my space" filter
     if (maxWidth && p.dimensions.width > Number(maxWidth)) return false;
@@ -87,8 +84,6 @@ router.get('/', async (req, res) => {
 
   const sorters = {
     newest: (a, b) => b.createdAt.localeCompare(a.createdAt),
-    price_asc: (a, b) => a.price - b.price,
-    price_desc: (a, b) => b.price - a.price,
     name: (a, b) => a.name.localeCompare(b.name),
   };
   list = [...list].sort(sorters[sort] || sorters.newest);

@@ -1,5 +1,5 @@
-// End-to-end API test: seller lists a product, buyer finds it, checks fit, buys it,
-// seller fulfils the order. Uses a throwaway data file.
+// End-to-end API tests: a seller lists a product, a shopper finds it by size and
+// sends an enquiry, and the seller follows up. Uses a throwaway data file.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const os = require('os');
@@ -60,15 +60,14 @@ test('auth: register, duplicate email, bad login, me', async () => {
   assert.equal(me.body.user.name, 'New Buyer');
 });
 
-test('marketplace flow: list → search by fit → cart → checkout → fulfil', async () => {
+test('listing flow: create product without price, find it by size', async () => {
   const seller = await login('seller@oakandloom.test');
   const buyer = await login('buyer@roomfit.test');
 
   // Buyers cannot create products
-  const forbidden = await api('POST', '/api/products', { token: buyer, body: {} });
-  assert.equal(forbidden.status, 403);
+  assert.equal((await api('POST', '/api/products', { token: buyer, body: {} })).status, 403);
 
-  const invalid = await api('POST', '/api/products', { token: seller, body: { name: 'Table', price: 10 } });
+  const invalid = await api('POST', '/api/products', { token: seller, body: { name: 'Table' } });
   assert.equal(invalid.status, 400);
 
   const created = await api('POST', '/api/products', {
@@ -76,75 +75,82 @@ test('marketplace flow: list → search by fit → cart → checkout → fulfil'
     body: {
       name: 'Compact Coffee Table',
       category: 'Tables',
-      price: 9999,
+      price: 9999, // ignored: listings have no prices
       stock: 2,
       dimensions: { width: 90, depth: 50, height: 40 },
       modelUrl: 'https://example.com/table.glb',
     },
   });
-  assert.equal(created.status, 201);
-  const productId = created.body.product.id;
+  assert.equal(created.status, 201, created.raw);
+  assert.equal(created.body.product.price, undefined);
   assert.equal(created.body.product.shop.name, 'Oak & Loom');
+  assert.ok('phone' in created.body.product.shop);
 
-  // "Fits my space" filter: a 100cm-wide nook fits the table but not the 219cm sofa
+  // No product in the catalogue exposes a price
+  const all = await api('GET', '/api/products');
+  assert.ok(all.body.products.every((p) => p.price === undefined));
+
+  // "Fits my space" filter: a 100cm-wide nook fits the table but not the sofas
   const fits = await api('GET', '/api/products?maxWidth=100&category=Tables');
-  assert.ok(fits.body.products.some((p) => p.id === productId));
-  const sofas = await api('GET', '/api/products?maxWidth=100&category=Sofas');
-  assert.equal(sofas.body.products.length, 0);
+  assert.ok(fits.body.products.some((p) => p.id === created.body.product.id));
+  assert.equal((await api('GET', '/api/products?maxWidth=100&category=Sofas')).body.products.length, 0);
 
   // AR viewer page renders for products with a model
-  const ar = await fetch(`${base}/ar/${productId}`);
+  const ar = await fetch(`${base}/ar/${created.body.product.id}`);
   assert.equal(ar.status, 200);
   assert.match(await ar.text(), /ar-scale="fixed"/);
-
-  // Cart respects stock
-  const tooMany = await api('POST', '/api/cart', { token: buyer, body: { productId, qty: 3 } });
-  assert.equal(tooMany.status, 400);
-  const added = await api('POST', '/api/cart', { token: buyer, body: { productId, qty: 2 } });
-  assert.equal(added.body.cart.count, 2);
-  assert.equal(added.body.cart.subtotal, 19998);
-
-  const noAddress = await api('POST', '/api/orders', { token: buyer, body: { shipping: {} } });
-  assert.equal(noAddress.status, 400);
-
-  const checkout = await api('POST', '/api/orders', {
-    token: buyer,
-    body: { shipping: { name: 'Demo', phone: '999', address: '1 Main St', city: 'Pune' }, paymentMethod: 'cod' },
-  });
-  assert.equal(checkout.status, 201);
-  const [order] = checkout.body.orders;
-  assert.equal(order.total, 19998 + 49);
-
-  const afterStock = await api('GET', `/api/products/${productId}`);
-  assert.equal(afterStock.body.product.stock, 0);
-  assert.equal((await api('GET', '/api/cart', { token: buyer })).body.cart.count, 0);
-
-  // Another shop's seller can't see or move this order
-  const otherSeller = await login('seller@chairhouse.test');
-  assert.equal((await api('GET', `/api/orders/${order.id}`, { token: otherSeller })).status, 404);
-
-  // Seller workflow with enforced transitions
-  const skip = await api('PATCH', `/api/orders/${order.id}/status`, { token: seller, body: { status: 'delivered' } });
-  assert.equal(skip.status, 400);
-  for (const status of ['confirmed', 'shipped', 'delivered']) {
-    const r = await api('PATCH', `/api/orders/${order.id}/status`, { token: seller, body: { status } });
-    assert.equal(r.status, 200, r.raw);
-  }
-  const sellerOrders = await api('GET', '/api/orders', { token: seller });
-  assert.equal(sellerOrders.body.orders[0].status, 'delivered');
 });
 
-test('buyer cancellation restores stock', async () => {
+test('enquiry flow: guest and shopper enquire, seller follows up', async () => {
+  const seller = await login('seller@chairhouse.test');
+  const otherSeller = await login('seller@lumen.test');
   const buyer = await login('buyer@roomfit.test');
   const { body } = await api('GET', '/api/products?category=Chairs');
   const chair = body.products[0];
 
-  await api('POST', '/api/cart', { token: buyer, body: { productId: chair.id, qty: 1 } });
-  const { body: co } = await api('POST', '/api/orders', {
-    token: buyer,
-    body: { shipping: { name: 'D', phone: '1', address: 'A', city: 'C' } },
+  // Validation
+  assert.equal((await api('POST', '/api/enquiries', { body: { productId: 'nope', name: 'A', phone: '9876543210' } })).status, 404);
+  assert.equal((await api('POST', '/api/enquiries', { body: { productId: chair.id, phone: '9876543210' } })).status, 400);
+  assert.equal((await api('POST', '/api/enquiries', { body: { productId: chair.id, name: 'A', phone: 'abc' } })).status, 400);
+  const wantsEmailButNone = await api('POST', '/api/enquiries', {
+    body: { productId: chair.id, name: 'A', phone: '9876543210', preferredContact: 'email' },
   });
-  const cancel = await api('PATCH', `/api/orders/${co.orders[0].id}/status`, { token: buyer, body: { status: 'cancelled' } });
-  assert.equal(cancel.status, 200);
-  assert.equal((await api('GET', `/api/products/${chair.id}`)).body.product.stock, chair.stock);
+  assert.equal(wantsEmailButNone.status, 400);
+  assert.equal((await api('POST', '/api/enquiries', { token: seller, body: { productId: chair.id, name: 'S', phone: '9876543210' } })).status, 403);
+
+  // Guest enquiry gets a default message
+  const guest = await api('POST', '/api/enquiries', { body: { productId: chair.id, name: 'Guest', phone: '+91 98765 43210' } });
+  assert.equal(guest.status, 201, guest.raw);
+  assert.equal(guest.body.enquiry.buyerId, null);
+  assert.match(guest.body.enquiry.message, /price and availability/);
+
+  // Signed-in shopper enquiry
+  const mine = await api('POST', '/api/enquiries', {
+    token: buyer,
+    body: { productId: chair.id, name: 'Demo Buyer', phone: '9000000000', email: 'b@x.com', preferredContact: 'whatsapp', message: 'Is it available in green?' },
+  });
+  assert.equal(mine.status, 201, mine.raw);
+  assert.equal(mine.body.enquiry.shopName, 'The Chair House');
+
+  // Shopper sees only their own enquiry
+  const buyerList = await api('GET', '/api/enquiries', { token: buyer });
+  assert.deepEqual(buyerList.body.enquiries.map((e) => e.id), [mine.body.enquiry.id]);
+
+  // Seller sees both, newest first; another shop sees none of them
+  const sellerList = await api('GET', '/api/enquiries', { token: seller });
+  assert.deepEqual(sellerList.body.enquiries.map((e) => e.id), [mine.body.enquiry.id, guest.body.enquiry.id]);
+  assert.equal((await api('GET', `/api/enquiries/${mine.body.enquiry.id}`, { token: otherSeller })).status, 404);
+
+  // Only the shop can change status; buyers cannot
+  const id = mine.body.enquiry.id;
+  assert.equal((await api('PATCH', `/api/enquiries/${id}/status`, { token: buyer, body: { status: 'closed' } })).status, 404);
+  assert.equal((await api('PATCH', `/api/enquiries/${id}/status`, { token: seller, body: { status: 'bogus' } })).status, 400);
+  const contacted = await api('PATCH', `/api/enquiries/${id}/status`, { token: seller, body: { status: 'contacted' } });
+  assert.equal(contacted.body.enquiry.status, 'contacted');
+  const closed = await api('PATCH', `/api/enquiries/${id}/status`, { token: seller, body: { status: 'closed' } });
+  assert.deepEqual(closed.body.enquiry.history.map((h) => h.status), ['new', 'contacted', 'closed']);
+
+  // The shopper can view their enquiry and its status
+  const view = await api('GET', `/api/enquiries/${id}`, { token: buyer });
+  assert.equal(view.body.enquiry.status, 'closed');
 });

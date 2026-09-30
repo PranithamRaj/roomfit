@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const COLLECTIONS = ['users', 'shops', 'products', 'carts', 'orders'];
+const COLLECTIONS = ['users', 'shops', 'products', 'enquiries'];
 const newId = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
 const matches = (row, query = {}) => Object.entries(query).every(([k, v]) => row[k] === v);

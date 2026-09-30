@@ -2,14 +2,12 @@ import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import { useCart } from '../context/CartContext';
 import { API_URL } from '../lib/config';
 import { Button, Card, Empty, H2, Muted, Screen } from './ui';
 import { colors, space } from '../theme';
 
 export default function AccountScreen() {
   const { user, shop, logout } = useAuth();
-  const { clearLocal } = useCart();
 
   if (!user) {
     return (
@@ -57,7 +55,6 @@ export default function AccountScreen() {
         icon="log-out-outline"
         style={{ marginTop: space(4) }}
         onPress={async () => {
-          clearLocal();
           await logout();
         }}
       />
