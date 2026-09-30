@@ -73,6 +73,7 @@ export function AuthProvider({ children }) {
       user, shop, ready, login, register, logout, refreshShop,
       isSeller: user?.role === 'seller',
       isBuyer: user?.role === 'buyer',
+      isAdmin: user?.role === 'admin',
     }),
     [user, shop, ready, login, register, logout, refreshShop],
   );

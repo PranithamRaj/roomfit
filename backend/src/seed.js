@@ -152,12 +152,29 @@ const SHOPS = [
   },
 ];
 
+// The admin (RoomFit team) adds 3D/AR models. ADMIN_EMAIL + ADMIN_PASSWORD choose the account;
+// without them, a demo admin is created only for local/in-memory data, never in a real MongoDB,
+// so a public demo password can't unlock a production database.
+function adminAccount() {
+  const { ADMIN_EMAIL, ADMIN_PASSWORD } = process.env;
+  if (ADMIN_EMAIL && ADMIN_PASSWORD) return { email: ADMIN_EMAIL.trim().toLowerCase(), password: ADMIN_PASSWORD };
+  if (db.kind !== 'mongo') return { email: 'admin@roomfit.test', password: DEMO_PASSWORD };
+  return null;
+}
+
 // Wipes the database (file or MongoDB) and inserts the demo data.
 async function seed({ log = true } = {}) {
   await db.reset();
   const hash = await bcrypt.hash(DEMO_PASSWORD, 10);
 
   await db.users.insert({ id: stableId('user:buyer@roomfit.test'), name: 'Demo Buyer', email: 'buyer@roomfit.test', role: 'buyer', passwordHash: hash });
+  const admin = adminAccount();
+  if (admin) {
+    await db.users.insert({
+      id: stableId(`user:${admin.email}`), name: 'RoomFit Admin', email: admin.email, role: 'admin',
+      passwordHash: admin.password === DEMO_PASSWORD ? hash : await bcrypt.hash(admin.password, 10),
+    });
+  }
 
   let products = 0;
   for (const entry of SHOPS) {
@@ -174,6 +191,8 @@ async function seed({ log = true } = {}) {
   if (log) {
     console.log(`Seeded ${SHOPS.length} shops and ${products} products into the ${db.kind} database.`);
     console.log(`Demo logins (password "${DEMO_PASSWORD}"): buyer@roomfit.test, seller@oakandloom.test`);
+    if (admin) console.log(`Admin login: ${admin.email}${admin.password === DEMO_PASSWORD ? ` (password "${DEMO_PASSWORD}")` : ''}`);
+    else console.log('No admin account created: run `npm run create-admin -- <email> <password>`');
   }
 }
 

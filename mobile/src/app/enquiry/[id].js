@@ -6,6 +6,9 @@ import { assetUrl } from '../../lib/config';
 import { callUrl, emailUrl, hasPhone, openLink, whatsappUrl } from '../../lib/contact';
 import { CONTACT_LABEL, dateTime, STATUS_LABEL } from '../../lib/format';
 import { useAsync } from '../../lib/useAsync';
+import { useLiveRefresh } from '../../lib/live';
+import { confirmAction } from '../../lib/confirm';
+import { goBack } from '../../lib/nav';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Card, ErrorBox, H2, Loading, Muted, Screen, StatusPill } from '../../components/ui';
 import { colors, radius, space } from '../../theme';
@@ -18,8 +21,10 @@ const NEXT = {
 
 export default function EnquiryDetail() {
   const { id } = useLocalSearchParams();
-  const { isSeller } = useAuth();
+  const { isSeller, isAdmin } = useAuth();
   const { data: e, loading, error, reload } = useAsync(() => api.enquiry(id).then((r) => r.enquiry), [id]);
+  // Both sides see status changes as they happen.
+  useLiveRefresh(reload, (ev) => ev.enquiryId === id);
   const [busy, setBusy] = useState(null);
   const [actionError, setActionError] = useState(null);
 
@@ -39,6 +44,19 @@ export default function EnquiryDetail() {
     }
   };
 
+  const remove = async () => {
+    if (!(await confirmAction('Delete this enquiry?', `${e.name}'s enquiry will be removed for the shop and the shopper.`, 'Delete'))) return;
+    setBusy('delete');
+    setActionError(null);
+    try {
+      await api.deleteEnquiry(e.id);
+      goBack('/all-enquiries');
+    } catch (err) {
+      setActionError(err);
+      setBusy(null);
+    }
+  };
+
   // Contacting the shopper also moves a new enquiry to "contacted".
   const reach = (url) => {
     openLink(url);
@@ -48,7 +66,10 @@ export default function EnquiryDetail() {
 
   return (
     <Screen>
-      <Pressable style={styles.product} onPress={isSeller ? undefined : () => router.push(`/product/${e.productId}`)}>
+      <Pressable style={styles.product} onPress={
+        isSeller ? undefined
+          : isAdmin ? () => router.push({ pathname: '/admin/ar-model', params: { id: e.productId } })
+            : () => router.push(`/product/${e.productId}`)}>
         <Image source={{ uri: assetUrl(e.productImage) }} style={styles.thumb} />
         <View style={{ flex: 1 }}>
           <Text style={styles.name}>{e.productName}</Text>
@@ -58,12 +79,26 @@ export default function EnquiryDetail() {
       </Pressable>
 
       <Card style={{ marginTop: space(4) }}>
-        <H2 style={{ fontSize: 16 }}>{isSeller ? e.name : 'Your message'}</H2>
+        <H2 style={{ fontSize: 16 }}>{isSeller || isAdmin ? e.name : 'Your message'}</H2>
         <Muted style={{ fontSize: 12, marginBottom: 8 }}>{dateTime(e.createdAt)}</Muted>
         <Text style={styles.message}>{e.message}</Text>
       </Card>
 
-      {isSeller ? (
+      {isAdmin ? (
+        <Card style={{ marginTop: space(4) }}>
+          <H2 style={{ fontSize: 16, marginBottom: 6 }}>Details</H2>
+          <Muted>Shopper: {e.name}{e.buyerId ? ' (signed in)' : ' (guest)'}</Muted>
+          <Muted>Phone: {e.phone}</Muted>
+          {e.email ? <Muted>Email: {e.email}</Muted> : null}
+          <Muted>Prefers: {CONTACT_LABEL[e.preferredContact]}</Muted>
+          <View style={styles.actions}>
+            <Button small variant="outline" icon="storefront-outline" title={e.shopName} onPress={() => router.push(`/admin/shop/${e.shopId}`)} />
+            {e.buyerId ? (
+              <Button small variant="outline" icon="person-outline" title="Shopper's account" onPress={() => router.push(`/admin/user/${e.buyerId}`)} />
+            ) : null}
+          </View>
+        </Card>
+      ) : isSeller ? (
         <Card style={{ marginTop: space(4) }}>
           <H2 style={{ fontSize: 16, marginBottom: 6 }}>Contact {e.name.split(' ')[0]}</H2>
           <Muted>Prefers: {CONTACT_LABEL[e.preferredContact]}</Muted>
@@ -93,18 +128,24 @@ export default function EnquiryDetail() {
       )}
 
       <ErrorBox error={actionError} />
-      {isSeller && (
+      {(isSeller || isAdmin) && (
         <View style={{ gap: 10, marginTop: space(4) }}>
           {NEXT[e.status].map(([status, label]) => (
             <Button key={status} title={label} variant={status === 'new' ? 'outline' : 'primary'}
               loading={busy === status} disabled={!!busy} onPress={() => change(status)} />
           ))}
+          {isAdmin && (
+            <Button title="Delete enquiry (spam)" icon="trash-outline" variant="danger"
+              loading={busy === 'delete'} disabled={!!busy} onPress={remove} />
+          )}
         </View>
       )}
 
       <H2 style={{ fontSize: 16, marginTop: space(6) }}>History</H2>
       {e.history.map((h) => (
-        <Muted key={h.at + h.status} style={{ marginTop: 4 }}>{STATUS_LABEL[h.status]} · {dateTime(h.at)}</Muted>
+        <Muted key={h.at + h.status} style={{ marginTop: 4 }}>
+          {STATUS_LABEL[h.status]} · {dateTime(h.at)}{h.by === 'admin' ? ' · by RoomFit' : ''}
+        </Muted>
       ))}
     </Screen>
   );

@@ -8,6 +8,7 @@ import { hasAr, openInRoom } from '../../lib/ar';
 import { callUrl, hasPhone, openLink, whatsappUrl } from '../../lib/contact';
 import { dims } from '../../lib/format';
 import { useAsync } from '../../lib/useAsync';
+import { useLiveRefresh } from '../../lib/live';
 import ModelPreview from '../../components/ModelPreview';
 import FitChecker from '../../components/FitChecker';
 import ProductCard from '../../components/ProductCard';
@@ -19,6 +20,8 @@ const notify = (title, body) => (Platform.OS === 'web' ? window.alert(`${title}\
 export default function ProductDetail() {
   const { id } = useLocalSearchParams();
   const { data, loading, error, reload } = useAsync(() => api.product(id), [id]);
+  // New photos from the shop, or a 3D model from the RoomFit team, appear without a refresh.
+  useLiveRefresh(reload, (e) => e.type.startsWith('product.') && e.productId === id);
   const [view, setView] = useState('3d');
   const [scaleWarning, setScaleWarning] = useState(false);
 
@@ -44,7 +47,7 @@ export default function ProductDetail() {
       <Stack.Screen options={{ title: p.category }} />
       <Screen>
         {shown === '3d' ? (
-          <ModelPreview productId={p.id} height={340} onModelSize={(m) => setScaleWarning(m.off)} />
+          <ModelPreview key={p.modelUrl} productId={p.id} height={340} onModelSize={(m) => setScaleWarning(m.off)} />
         ) : (
           <Image source={{ uri: assetUrl(p.images?.[0]) }} style={styles.photo} resizeMode="cover" />
         )}

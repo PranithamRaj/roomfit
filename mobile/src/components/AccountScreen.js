@@ -6,6 +6,12 @@ import { API_URL } from '../lib/config';
 import { Button, Card, Empty, H2, Muted, Screen } from './ui';
 import { colors, space } from '../theme';
 
+const ROLE = {
+  seller: { icon: 'storefront-outline', label: (shop) => `Seller · ${shop?.name || 'no shop yet'}` },
+  admin: { icon: 'shield-checkmark-outline', label: () => 'RoomFit admin · 3D & AR models' },
+  buyer: { icon: 'bag-handle-outline', label: () => 'Shopper' },
+};
+
 export default function AccountScreen() {
   const { user, shop, logout } = useAuth();
 
@@ -28,6 +34,7 @@ export default function AccountScreen() {
     );
   }
 
+  const role = ROLE[user.role] || ROLE.buyer;
   return (
     <Screen>
       <Card style={styles.profile}>
@@ -38,8 +45,8 @@ export default function AccountScreen() {
           <H2>{user.name}</H2>
           <Muted>{user.email}</Muted>
           <View style={styles.role}>
-            <Ionicons name={user.role === 'seller' ? 'storefront-outline' : 'bag-handle-outline'} size={13} color={colors.accent} />
-            <Text style={styles.roleText}>{user.role === 'seller' ? `Seller · ${shop?.name || 'no shop yet'}` : 'Shopper'}</Text>
+            <Ionicons name={role.icon} size={13} color={colors.accent} />
+            <Text style={styles.roleText}>{role.label(shop)}</Text>
           </View>
         </View>
       </Card>

@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../lib/api';
 import { assetUrl } from '../../lib/config';
 import { useAsync } from '../../lib/useAsync';
+import { useLiveRefresh } from '../../lib/live';
 import { useAuth } from '../../context/AuthContext';
 import ProductCard from '../../components/ProductCard';
 import { Chip, ErrorBox, H2, Loading, Muted } from '../../components/ui';
@@ -27,6 +28,7 @@ export default function Home() {
     ]);
     return { products: p.products, shops: s.shops, categories: c.categories, demoMode: Boolean(h?.demoMode) };
   });
+  useLiveRefresh(reload, (e) => e.type.startsWith('product.') || e.type.startsWith('shop.'));
 
   if (loading) return <Loading />;
   const cardW = Math.min(200, (width - space(4) * 2 - 12) / 2);
@@ -49,7 +51,7 @@ export default function Home() {
           {data?.demoMode && (
             <View style={styles.demo}>
               <Ionicons name="flask-outline" size={16} color={colors.warn} />
-              <Text style={styles.demoText}>Demo mode: accounts and orders reset from time to time.</Text>
+              <Text style={styles.demoText}>Demo mode: accounts and enquiries reset from time to time.</Text>
             </View>
           )}
         </View>

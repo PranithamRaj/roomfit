@@ -4,6 +4,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../lib/api';
 import { useAsync } from '../../lib/useAsync';
+import { useLiveRefresh } from '../../lib/live';
 import ProductCard from '../../components/ProductCard';
 import { Button, Chip, Empty, ErrorBox, Field, Loading, Muted } from '../../components/ui';
 import { colors, radius, space } from '../../theme';
@@ -42,6 +43,7 @@ export default function Browse() {
     () => api.products({ q: debouncedQ, category, sort, arOnly: arOnly ? 'true' : '', ...fit }).then((r) => r.products),
     [debouncedQ, category, sort, arOnly, fit.maxWidth, fit.maxDepth, fit.maxHeight],
   );
+  useLiveRefresh(results.reload, (e) => e.type.startsWith('product.') || e.type.startsWith('shop.'));
 
   const columns = width > 700 ? 3 : 2;
   const gap = 12;

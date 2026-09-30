@@ -55,6 +55,8 @@ function createApp() {
   app.use('/api/products', require('./routes/products'));
   app.use('/api/enquiries', require('./routes/enquiries'));
   app.use('/api/uploads', require('./routes/uploads'));
+  app.use('/api/admin', require('./routes/admin'));
+  app.use('/api/events', require('./routes/events'));
 
   // Local-disk uploads (development). model/gltf-binary lets Scene Viewer & Quick Look recognise models.
   app.use('/uploads', express.static(UPLOAD_DIR, {

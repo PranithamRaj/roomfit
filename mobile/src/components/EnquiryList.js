@@ -6,7 +6,7 @@ import { CONTACT_LABEL, date } from '../lib/format';
 import { Empty, ErrorBox, Loading, Muted, StatusPill } from './ui';
 import { colors, radius, space } from '../theme';
 
-// Shared by the shopper's "My enquiries" and the seller's enquiry inbox.
+// Shared by the shopper's "My enquiries", the seller's enquiry inbox and the admin's all-enquiries view.
 export default function EnquiryList({ state, perspective, emptyTitle, emptyBody, header }) {
   const { data, loading, error, reload } = state;
   if (loading) return <Loading />;
@@ -26,15 +26,15 @@ export default function EnquiryList({ state, perspective, emptyTitle, emptyBody,
           <View style={{ flex: 1 }}>
             <View style={styles.top}>
               <Text style={styles.title} numberOfLines={1}>
-                {perspective === 'seller' ? e.name : e.productName}
+                {perspective === 'buyer' ? e.productName : e.name}
               </Text>
               <StatusPill status={e.status} />
             </View>
             <Muted style={{ fontSize: 12 }} numberOfLines={1}>
-              {perspective === 'seller' ? e.productName : e.shopName} · {date(e.createdAt)}
+              {perspective === 'seller' ? e.productName : perspective === 'admin' ? `${e.productName} · ${e.shopName}` : e.shopName} · {date(e.createdAt)}
             </Muted>
             <Text style={styles.message} numberOfLines={2}>{e.message}</Text>
-            {perspective === 'seller' && (
+            {perspective !== 'buyer' && (
               <View style={styles.meta}>
                 <Ionicons name={e.preferredContact === 'whatsapp' ? 'logo-whatsapp' : e.preferredContact === 'email' ? 'mail-outline' : 'call-outline'} size={12} color={colors.muted} />
                 <Muted style={{ fontSize: 12 }}> Prefers {CONTACT_LABEL[e.preferredContact]}</Muted>

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../lib/api';
 import { assetUrl } from '../../lib/config';
 import { useAsync } from '../../lib/useAsync';
+import { useLiveRefresh } from '../../lib/live';
 import { useAuth } from '../../context/AuthContext';
 import { Badge, Button, Empty, ErrorBox, Loading, Muted } from '../../components/ui';
 import { colors, radius, space } from '../../theme';
@@ -13,8 +14,8 @@ export default function SellerProducts() {
   const { data, loading, error, reload } = useAsync(
     () => (shop ? api.myShop().then((r) => r.products) : Promise.resolve([])),
     [shop?.id],
-    { refetchOnFocus: true },
   );
+  useLiveRefresh(reload, (e) => e.type.startsWith('product.') && e.shopId === shop?.id);
 
   if (loading) return <Loading />;
   return (
@@ -31,7 +32,7 @@ export default function SellerProducts() {
       }
       ListEmptyComponent={
         <Empty icon="cube-outline" title={shop ? 'No products yet' : 'Set up your shop first'}
-          body={shop ? 'Add your first piece. Include a .glb 3D model so buyers can place it in their room.' : undefined}
+          body={shop ? 'Add your first piece with photos and its real size. The RoomFit team then adds a 3D model so shoppers can place it in their room.' : undefined}
           action={!shop && <Button title="Set up shop" onPress={() => router.push('/seller/shop-form')} />} />
       }
       ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
@@ -43,7 +44,8 @@ export default function SellerProducts() {
             <Muted style={{ fontSize: 12 }}>{p.category} · {p.dimensions.width}×{p.dimensions.depth}×{p.dimensions.height} cm</Muted>
             <View style={styles.meta}>
               <Text style={[styles.stock, p.stock <= 2 && { color: colors.danger }]}>{p.stock} in stock</Text>
-              {p.modelUrl ? <Badge label="AR" icon="cube-outline" tone="success" /> : <Badge label="No 3D" />}
+              {p.modelUrl ? <Badge label="AR live" icon="cube-outline" tone="success" /> : <Badge label="AR pending" icon="time-outline" />}
+              <Muted style={{ fontSize: 12 }}>{p.images?.length || 0} photos</Muted>
             </View>
           </View>
           <Ionicons name="create-outline" size={20} color={colors.muted} />

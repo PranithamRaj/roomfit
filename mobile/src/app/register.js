@@ -8,7 +8,7 @@ import { colors, radius, space } from '../theme';
 
 const ROLES = [
   { key: 'buyer', icon: 'bag-handle-outline', title: "I'm shopping", body: 'Browse shops and try furniture in my room' },
-  { key: 'seller', icon: 'storefront-outline', title: 'I sell furniture', body: 'List my shop’s pieces with 3D/AR models' },
+  { key: 'seller', icon: 'storefront-outline', title: 'I sell furniture', body: 'List my shop’s pieces; RoomFit adds the 3D/AR models' },
 ];
 
 export default function Register() {

@@ -1,7 +1,9 @@
 const express = require('express');
 const db = require('../db');
-const { requireRole } = require('../middleware/auth');
+const { optionalAuth, requireRole } = require('../middleware/auth');
 const { withShops } = require('./products');
+const { publish } = require('../events');
+const activity = require('../activity');
 
 const router = express.Router();
 
@@ -16,6 +18,7 @@ async function shopSummary(shop) {
 router.get('/', async (req, res) => {
   const q = String(req.query.q || '').toLowerCase();
   const shops = (await db.shops.findMany())
+    .filter((s) => !s.suspended) // hidden from shoppers by an admin
     .filter((s) => !q || s.name.toLowerCase().includes(q) || (s.city || '').toLowerCase().includes(q));
   res.json({ shops: await Promise.all(shops.map(shopSummary)) });
 });
@@ -27,9 +30,9 @@ router.get('/mine', requireRole('seller'), async (req, res) => {
   res.json({ shop: await shopSummary(shop), products: await db.products.findMany({ shopId: shop.id }) });
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', optionalAuth, async (req, res) => {
   const shop = await db.shops.byId(req.params.id);
-  if (!shop) return res.status(404).json({ error: 'Shop not found' });
+  if (!shop || (shop.suspended && req.user?.role !== 'admin')) return res.status(404).json({ error: 'Shop not found' });
   const products = await withShops(await db.products.findMany({ shopId: shop.id }));
   res.json({ shop: await shopSummary(shop), products });
 });
@@ -41,6 +44,8 @@ router.post('/', requireRole('seller'), async (req, res) => {
   const data = pick(req.body || {});
   if (!data.name?.trim()) return res.status(400).json({ error: 'Shop name is required' });
   const shop = await db.shops.insert({ ...data, name: data.name.trim(), ownerId: req.user.id });
+  publish('shop.updated', { shopId: shop.id });
+  await activity.record('shop.created', req.user, `${req.user.name} opened ${shop.name}`, { shopId: shop.id });
   res.status(201).json({ shop: await shopSummary(shop) });
 });
 
@@ -52,7 +57,10 @@ router.put('/:id', requireRole('seller'), async (req, res) => {
   if (data.name !== undefined && !String(data.name).trim()) {
     return res.status(400).json({ error: 'Shop name cannot be empty' });
   }
-  res.json({ shop: await shopSummary(await db.shops.update(shop.id, data)) });
+  const updated = await db.shops.update(shop.id, data);
+  publish('shop.updated', { shopId: shop.id });
+  await activity.record('shop.updated', req.user, `${updated.name} updated its shop profile`, { shopId: shop.id });
+  res.json({ shop: await shopSummary(updated) });
 });
 
 module.exports = router;

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../lib/api';
 import { assetUrl } from '../../lib/config';
 import { useAsync } from '../../lib/useAsync';
+import { useLiveRefresh } from '../../lib/live';
 import ProductCard from '../../components/ProductCard';
 import { Empty, ErrorBox, H1, Loading, Muted, Screen } from '../../components/ui';
 import { colors, radius, space } from '../../theme';
@@ -12,6 +13,7 @@ export default function ShopDetail() {
   const { id } = useLocalSearchParams();
   const { width } = useWindowDimensions();
   const { data, loading, error, reload } = useAsync(() => api.shop(id), [id]);
+  useLiveRefresh(reload, (e) => e.shopId === id && (e.type.startsWith('product.') || e.type.startsWith('shop.')));
 
   if (loading) return <Loading />;
   if (!data) return <Screen><ErrorBox error={error} onRetry={reload} /></Screen>;

@@ -2,13 +2,14 @@
 //  - MongoDB when MONGODB_URI is set (production / Vercel)
 //  - a JSON file otherwise (local development and tests)
 // Routes only use the async collection API below:
-//   byId(id) · findOne(query) · findMany(query) · insert(doc) · update(id, patch) · remove(id)
+//   byId(id) · findOne(query) · findMany(query, { newestFirst, limit }) · insert(doc) · update(id, patch) · remove(id)
+//   addToList(id, field, value) · removeFromList(id, field, value)   (atomic array edits)
 // `query` is a plain equality match, e.g. { shopId, status: 'placed' }.
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const COLLECTIONS = ['users', 'shops', 'products', 'enquiries'];
+const COLLECTIONS = ['users', 'shops', 'products', 'enquiries', 'activity'];
 const newId = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
 const matches = (row, query = {}) => Object.entries(query).every(([k, v]) => row[k] === v);
@@ -41,7 +42,11 @@ function fileAdapter(file) {
     return {
       async byId(id) { return rows().find((r) => r.id === id) || null; },
       async findOne(query) { return rows().find((r) => matches(r, query)) || null; },
-      async findMany(query) { return rows().filter((r) => matches(r, query)); },
+      async findMany(query, { newestFirst = false, limit } = {}) {
+        let list = rows().filter((r) => matches(r, query));
+        if (newestFirst) list = [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        return limit ? list.slice(0, limit) : list;
+      },
       async insert(doc) {
         const row = { id: newId(), createdAt: now(), updatedAt: now(), ...doc };
         rows().push(row);
@@ -52,6 +57,23 @@ function fileAdapter(file) {
         const row = rows().find((r) => r.id === id);
         if (!row) return null;
         Object.assign(row, patch, { updatedAt: now() });
+        save();
+        return row;
+      },
+      async addToList(id, field, value) {
+        const row = rows().find((r) => r.id === id);
+        if (!row) return null;
+        const list = row[field] || [];
+        row[field] = list.includes(value) ? list : [...list, value];
+        row.updatedAt = now();
+        save();
+        return row;
+      },
+      async removeFromList(id, field, value) {
+        const row = rows().find((r) => r.id === id);
+        if (!row) return null;
+        row[field] = (row[field] || []).filter((v) => v !== value);
+        row.updatedAt = now();
         save();
         return row;
       },
@@ -109,7 +131,12 @@ function mongoAdapter(uri) {
     return {
       async byId(id) { return (await col()).findOne({ id }, noMongoId); },
       async findOne(query = {}) { return (await col()).findOne(query, noMongoId); },
-      async findMany(query = {}) { return (await col()).find(query, noMongoId).toArray(); },
+      async findMany(query = {}, { newestFirst = false, limit } = {}) {
+        let cursor = (await col()).find(query, noMongoId);
+        if (newestFirst) cursor = cursor.sort({ createdAt: -1 });
+        if (limit) cursor = cursor.limit(limit);
+        return cursor.toArray();
+      },
       async insert(doc) {
         const row = { id: newId(), createdAt: now(), updatedAt: now(), ...doc };
         await (await col()).insertOne({ ...row });
@@ -119,6 +146,20 @@ function mongoAdapter(uri) {
         return (await col()).findOneAndUpdate(
           { id },
           { $set: { ...patch, updatedAt: now() } },
+          { returnDocument: 'after', ...noMongoId },
+        );
+      },
+      async addToList(id, field, value) {
+        return (await col()).findOneAndUpdate(
+          { id },
+          { $addToSet: { [field]: value }, $set: { updatedAt: now() } },
+          { returnDocument: 'after', ...noMongoId },
+        );
+      },
+      async removeFromList(id, field, value) {
+        return (await col()).findOneAndUpdate(
+          { id },
+          { $pull: { [field]: value }, $set: { updatedAt: now() } },
           { returnDocument: 'after', ...noMongoId },
         );
       },

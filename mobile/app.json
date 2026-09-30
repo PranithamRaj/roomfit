@@ -31,7 +31,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "RoomFit needs your photos so sellers can add product pictures."
+          "photosPermission": "RoomFit needs your photos so sellers can add product pictures.",
+          "cameraPermission": "RoomFit uses the camera so sellers can photograph their products."
         }
       ],
       "expo-font"

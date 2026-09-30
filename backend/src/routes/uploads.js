@@ -25,16 +25,22 @@ const upload = multer({
     ? multer.memoryStorage()
     : multer.diskStorage({ destination: UPLOAD_DIR, filename: (_req, file, cb) => cb(null, fileName(file.originalname)) }),
   limits: { fileSize: MAX_BYTES },
-  fileFilter: (_req, file, cb) => {
+  fileFilter: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    if (ALLOWED[ext]) return cb(null, true);
-    cb(Object.assign(new Error(`Unsupported file type ${ext || '(none)'} — use jpg/png/webp images or glb/usdz models`), { status: 400 }));
+    if (!ALLOWED[ext]) {
+      return cb(Object.assign(new Error(`Unsupported file type ${ext || '(none)'} — use jpg/png/webp images or glb/usdz models`), { status: 400 }));
+    }
+    // 3D models are added by the RoomFit team; sellers upload photos only.
+    if (ALLOWED[ext][0] === 'model' && req.user.role !== 'admin') {
+      return cb(Object.assign(new Error('Only the RoomFit team can upload 3D models'), { status: 403 }));
+    }
+    cb(null, true);
   },
 });
 
 const router = express.Router();
 
-router.post('/', requireRole('seller'), upload.single('file'), async (req, res) => {
+router.post('/', requireRole('seller', 'admin'), upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded (field name must be "file")' });
   const ext = path.extname(req.file.originalname).toLowerCase();
   const [kind, contentType] = ALLOWED[ext];

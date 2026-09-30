@@ -8,6 +8,7 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "seed": "node src/seed.js",
+    "create-admin": "node scripts/create-admin.js",
     "test": "node --test",
     "test:mongo": "node scripts/mongo-tests.js"
   },

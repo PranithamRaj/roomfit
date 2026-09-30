@@ -2,6 +2,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, shadow, space, STATUS_COLORS } from '../theme';
 import { STATUS_LABEL } from '../lib/format';
+import { useLiveStatus } from '../lib/live';
 
 export function Button({ title, onPress, variant = 'primary', icon, loading, disabled, style, small }) {
   const v = VARIANTS[variant];
@@ -123,6 +124,8 @@ export function Badge({ label, icon, tone = 'accent' }) {
     accent: [colors.accentSoft, colors.accent],
     success: [colors.successSoft, colors.success],
     dark: ['rgba(31,26,23,0.85)', '#fff'],
+    danger: [colors.dangerSoft, colors.danger],
+    muted: [colors.border, colors.muted],
   }[tone];
   return (
     <View style={[styles.badge, { backgroundColor: palette[0] }]}>
@@ -141,7 +144,36 @@ export function StatusPill({ status }) {
   );
 }
 
+export function SearchBar({ value, onChangeText, placeholder, style }) {
+  return (
+    <View style={[styles.search, style]}>
+      <Ionicons name="search" size={18} color={colors.muted} />
+      <TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor="#a89c90"
+        style={styles.searchInput} autoCorrect={false} autoCapitalize="none" returnKeyType="search" />
+      {!!value && (
+        <Pressable onPress={() => onChangeText('')} accessibilityLabel="Clear search">
+          <Ionicons name="close-circle" size={18} color={colors.muted} />
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+// Shows whether updates are arriving instantly (live stream) or by periodic refresh.
+export function LiveBadge({ style }) {
+  const live = useLiveStatus();
+  return (
+    <View style={[styles.row, { gap: 5 }, style]} accessibilityLabel={live ? 'Live updates on' : 'Refreshing automatically'}>
+      <View style={[styles.liveDot, { backgroundColor: live ? colors.success : colors.muted }]} />
+      <Text style={[styles.badgeText, { color: live ? colors.success : colors.muted }]}>{live ? 'Live' : 'Auto-refresh'}</Text>
+    </View>
+  );
+}
+
 export const styles = StyleSheet.create({
+  liveDot: { width: 8, height: 8, borderRadius: 4 },
+  search: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff', borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14 },
+  searchInput: { flex: 1, paddingVertical: 10, fontSize: 15, color: colors.ink },
   screen: { flex: 1, backgroundColor: colors.bg },
   row: { flexDirection: 'row', alignItems: 'center' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space(6), backgroundColor: colors.bg },

@@ -8,6 +8,7 @@ import { colors, space } from '../theme';
 const DEMO = [
   { label: 'Demo shopper', email: 'buyer@roomfit.test' },
   { label: 'Demo seller', email: 'seller@oakandloom.test' },
+  { label: 'Demo admin', email: 'admin@roomfit.test' },
 ];
 
 export default function Login() {

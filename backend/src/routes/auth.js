@@ -1,7 +1,8 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../db');
-const { signToken, publicUser, requireAuth } = require('../middleware/auth');
+const { SUSPENDED, signToken, publicUser, requireAuth } = require('../middleware/auth');
+const activity = require('../activity');
 
 const router = express.Router();
 
@@ -25,6 +26,7 @@ router.post('/register', async (req, res) => {
     role,
     passwordHash: await bcrypt.hash(password, 10),
   });
+  await activity.record('user.registered', user, `${user.name} signed up as a ${role === 'seller' ? 'seller' : 'shopper'}`, { userId: user.id });
   res.status(201).json({ token: signToken(user), user: publicUser(user) });
 });
 
@@ -34,6 +36,7 @@ router.post('/login', async (req, res) => {
   if (!user || !(await bcrypt.compare(password || '', user.passwordHash))) {
     return res.status(401).json({ error: 'Invalid email or password' });
   }
+  if (user.suspended) return res.status(403).json({ error: SUSPENDED });
   res.json({ token: signToken(user), user: publicUser(user) });
 });
 
